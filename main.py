@@ -67,4 +67,4 @@ def index(word=""):
     return render_template('index.html', word=word, data=results)
 
 if __name__ == '__main__':
-    app.run(debug=True, host="0.0.0.0", port=7777)
+    app.run(host='0.0.0.0', port=8080)
