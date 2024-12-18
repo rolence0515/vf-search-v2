@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>雙生紫焰影片字幕搜尋</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 20px;
+      background: #1c1c1c; /* 深色背景 */
+      color: #ddd;
+      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    h1 {
+      font-size: 2em;
+      text-align: center;
+      margin-bottom: 30px;
+      background: linear-gradient(to right, #6699FF, #FF66CC);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    form {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 20px;
+    }
+
+    input[type="text"] {
+      padding: 10px;
+      border: none;
+      border-radius: 4px 0 0 4px;
+      font-size: 1em;
+      width: 200px;
+      outline: none;
+    }
+
+    button {
+      padding: 10px 15px;
+      border: none;
+      border-radius: 0 4px 4px 0;
+      cursor: pointer;
+      background: linear-gradient(to right, #FF66CC, #6699FF);
+      color: #fff;
+      font-size: 1em;
+      transition: 0.3s;
+    }
+
+    button:hover {
+      filter: brightness(1.1);
+    }
+
+    ul {
+      list-style: none;
+      padding: 0;
+      margin: 0 auto;
+      max-width: 600px;
+    }
+
+    li {
+      margin: 10px 0;
+      background: #2a2a2a;
+      border-radius: 4px;
+      padding: 10px;
+      transition: background 0.3s;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+
+    li:hover {
+      background: #333;
+    }
+
+    a {
+      color: #FF66CC;
+      text-decoration: none;
+      font-size: 1em;
+      display: inline-block;
+      max-width: 100%;
+      overflow: hidden;
+      line-height: 1.4em;
+    }
+
+    .highlight {
+        color: #FF66CC;
+        font-weight: bold;
+        border-bottom: 2px solid #FF66CC;
+        padding-bottom: 1px;
+    }
+
+    .truncated-text {
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      overflow: hidden;
+      display: block;
+      max-width: 100%;
+    }
+
+    label {
+      color: #bebaba;
+      font-size: 0.4em;
+    }
+
+    @media (max-width: 768px) {
+      .truncated-text {
+        width: 150px;
+      }
+      input[type="text"] {
+        width: 150px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <h1>雙生紫焰影片字幕搜尋</h1>
+  <form method="POST" action="/">
+    <input type="text" name="word" placeholder="請輸入搜尋關鍵字" required>
+    <button type="submit">搜尋</button>
+  </form>
+  <ul>
+    {% for item in data %}
+    <li>
+      <label>{{ item.title_short }}</label>
+      <a href="{{ item.url }}" target="_blank" class="truncated-text">{{ item.text|safe }}</a>
+    </li>
+    {% endfor %}
+  </ul>
+</body>
+</html>
