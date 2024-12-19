@@ -112,6 +112,33 @@
         width: 150px;
       }
     }
+
+    /* Buy Me a Coffee 按钮样式 */
+    .bmc-button {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      text-decoration: none;
+      display: flex;
+      align-items: center;
+      padding: 10px 15px;
+      background-color: #FFDD00;
+      color: #000;
+      border-radius: 5px;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
+      transition: background-color 0.3s, transform 0.3s;
+    }
+
+    .bmc-button:hover {
+      background-color: #FFC700;
+      transform: translateY(-2px);
+    }
+
+    .bmc-button img {
+      width: 24px;
+      height: 24px;
+      margin-right: 10px;
+    }
   </style>
 </head>
 <body>
@@ -128,5 +155,10 @@
     </li>
     {% endfor %}
   </ul>
+  <!-- Buy Me a Coffee 按钮 -->
+  <a class="bmc-button" href="https://www.buymeacoffee.com/rolence0515" target="_blank">
+    <img src="https://www.buymeacoffee.com/assets/img/guidelines/logo-mark-1.svg" alt="Buy Me a Coffee">
+    請我喝杯咖啡
+  </a>
 </body>
 </html>
