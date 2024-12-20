@@ -1,6 +1,7 @@
 import json
 import os
 import re
+import chinese_converter
 from pathlib import Path
 from datetime import datetime
 
@@ -100,6 +101,7 @@ def search_videos(word):
 def index(word=""):
     if request.method == 'POST':
         word = request.form['word'].strip()
+        word = chinese_converter.to_traditional(word) # 簡體轉中文
     results = search_videos(word)
     return render_template('index.html', word=word, data=results)
 
