@@ -2,7 +2,6 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>上傳 SRT 檔案</title>
 </head>
 <body>
@@ -19,6 +18,18 @@
         </ul>
       {% endif %}
     {% endwith %}
+
+    <!-- 顯示最後上傳的影片資訊 -->
+    {% if last_video %}
+      <div style="border: 1px solid #ccc; padding: 10px; margin-bottom: 20px;">
+        <h3>最後上傳的影片</h3>
+        <p>影片標題：{{ last_video.title }}</p>
+        <p>影片編號：{{ last_video.number }}</p>
+        <p>video_id：{{ last_video.video_id }}</p>
+      </div>
+    {% else %}
+      <p>目前還沒有任何上傳紀錄喔～</p>
+    {% endif %}
 
     <form method="POST" action="/srt_upload" enctype="multipart/form-data">
         <div>
@@ -41,6 +52,5 @@
             <button type="submit">上傳</button>
         </div>
     </form>
-
 </body>
 </html>

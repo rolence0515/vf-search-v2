@@ -170,7 +170,23 @@ def srt_upload():
             if conn:
                 conn.close()
     else:
-        return render_template('srt_upload.html')
+        # 這裡是 GET，查詢目前資料庫中最後一筆影片
+        conn = None
+        last_video = None
+        try:
+            conn = psycopg2.connect(DATABASE_URL, sslmode='require')
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                # 根據你自己的排序方式 (假設 number 越大代表越晚上傳)
+                cur.execute("SELECT * FROM video ORDER BY m_dt DESC LIMIT 1")
+                last_video = cur.fetchone()
+        except Exception as e:
+            print("查詢最後上傳影片失敗:", e)
+        finally:
+            if conn:
+                conn.close()
+
+        # 將 last_video 丟給模板
+        return render_template('srt_upload.html', last_video=last_video)
 
 
 if __name__ == '__main__':
