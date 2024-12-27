@@ -19,12 +19,19 @@ def parse_srt_content(srt_content):
     """
     將SRT內容解析成字幕區塊的列表，每個區塊含有開始、結束時間及文字。
     """
-    srt_blocks = srt_content.strip().split('\n\n')
+    # 將所有換行符統一處理為 '\n'
+    srt_content = srt_content.replace('\r\n', '\n').strip()
+
+    # 按兩個空行分割區塊
+    srt_blocks = srt_content.split('\n\n')
     parsed_results = []
+
     for block in srt_blocks:
+        # 分割行
         lines = block.strip().split('\n')
         if len(lines) < 3:
             continue
+
         # SRT格式：
         # 1) index (可忽略)
         # 2) time range: "HH:MM:SS,mmm --> HH:MM:SS,mmm"
@@ -39,7 +46,9 @@ def parse_srt_content(srt_content):
         dur = end_ms - start_ms
 
         parsed_results.append((start_ms, dur, text))
+
     return parsed_results
+
 
 
 def srt_time_to_ms(timestamp):
@@ -152,6 +161,7 @@ def srt_upload():
                 for (start, dur, text) in subtitles:
                     # 將文字中單引號跳脫
                     escaped_text = text.replace("'", "''")
+                    print(escaped_text)
                     insert_text_query = f"""
                         INSERT INTO video_text (video_id, start, dur, text)
                         VALUES ('{video_id}', {start}, {dur}, '{escaped_text}')
