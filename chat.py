@@ -36,7 +36,7 @@ SEARCH_AGENT_RESP_DESC = """
     請注意，只能回傳以下字典格式：
     {
     "type": "text",  // 或 "elements"
-    "data":  "這裏是純文字內容"  // 這是純文字內容用來回傳一般的文字回答}
+    "data":  "這裏是Markdown 語法來格式化文本內容"  // 這是Markdown 語法來格式化文本，內容用來回傳一般的文字回答}
     }
 
     或
@@ -239,8 +239,58 @@ def get_videos_with_most_mentions(keyword: str) -> list:
 
     return results
 
+@tool
+def describe_ai_functionality() -> str:
+    """
+    回應這是一個什麼功能的 AI
+
+    Returns:
+        str: 描述 AI 功能的字串
+    """
+    description = """
+    這個 AI 是一個友善且多話的智能體，目標是幫助用戶查詢 YouTube 影片字幕和關鍵字出現次數，並提供相關影片的標題及連結資訊。
+
+    功能概述：
+    1. 查詢特定主題或關鍵字最常出現的影片。
+    2. 根據影片標題關鍵字查詢影片的完整 YouTube 字幕（前2000個字）。
+    3. 查詢指定影片的 YouTube 字幕段落列表。
+
+    角色特點：
+    1. 友善且多話：智能體以友善且熱情的態度與用戶交流，並會主動提供詳細的建議和資訊。
+    2. 主動提供建議：根據查詢結果，智能體會主動提供進一步的建議，例如推薦相關影片。
+    3. 解決需求和痛點：智能體會幫助用戶分析需求和痛點，並提供解決方案，確保查詢順利進行。
+
+    使用此 AI，您可以輕鬆查詢和獲取 YouTube 影片的相關資訊，提升您的使用體驗。
+    """
+    return description
+
+@tool
+def summarize_video_content(video_content: str) -> str:
+    """
+    根據影片內文給出影片內容總結
+
+    Args:
+        video_content: 影片內文
+
+    Returns:
+        str: 影片內容總結
+    """
+    if not video_content:
+        return "影片內文為空，無法總結。"
+
+    try:
+        # 使用模型生成影片內容總結
+        messages = [
+            {"role": "user", "content": [{"type": "text", "text": f"請總結以下影片內容：\n\n{video_content}"}]}
+        ]
+        summary = model(messages)
+        return summary.content
+    except Exception as e:
+        print("生成影片內容總結失敗:", e)
+        return "生成影片內容總結失敗，請稍後再試。"
+
 search_agent = CodeAgent(
-    tools=[search_youtube_subtitles, get_videos_with_most_mentions, get_full_video_subtitles_by_title],
+    tools=[search_youtube_subtitles, get_videos_with_most_mentions, get_full_video_subtitles_by_title, describe_ai_functionality, summarize_video_content],
     model=model,
     name="search_agent",
     description=SEARCH_AGENT_DESC
@@ -285,7 +335,16 @@ async def on_message(message: cl.Message):
         # 判斷格式並回傳
         if response.get("type") == "text":
             # 如果是純文字格式
-            msg.content=response.get("data", "未提供的文字")
+            response_content=response.get("data", "未提供的文字")
+
+            # 使用正則表達式依據 `，` 或 `。` 來拆分 token
+            tokens = re.split(r'[，。]', response_content)
+
+            # 逐步發送每個 token
+            for token in tokens:
+                await msg.stream_token(token + " ")  # 加上空格以保持單詞之間的間隔
+
+            # 最後更新訊息
             await msg.update()
         elif response.get("type") == "elements":
             # 如果是 elements 格式
