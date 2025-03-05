@@ -36,20 +36,18 @@ SEARCH_AGENT_RESP_DESC = """
     請注意，只能回傳以下字典格式：
     {
     "type": "text",  // 或 "elements"
-    "data": {       // 當 type 為 'text' 時，data 應該是純文字
-        "content": "這裏是純文字內容"  // 這是純文字內容
-    }
+    "data":  "這裏是純文字內容"  // 這是純文字內容用來回傳一般的文字回答}
     }
 
     或
 
     {
     "type": "elements",  // 當 type 為 'elements' 時
-    "data": {            // data 應該包含一個元素列表
+    "data": {            // data 應該包含一個元素列表，此類型的回應用於回傳影片標題及連結資訊
         "elements": [
         {
-            "label": "顯示的文字",
-            "url": "https://example.com"  // 這是可點擊的連結
+            "label": "影片的標題文字",
+            "url": "https://example.com"  // 這是影片的連結
         }
         ]
     }
@@ -57,6 +55,7 @@ SEARCH_AGENT_RESP_DESC = """
 
     請確保所有回應都符合上面這兩種格式。
     """
+
 
 # ============================== Agent 配置區 ==============================
 # 設定 OpenAI 代理模型
@@ -73,7 +72,69 @@ users = {
     "user3": {"session_id": "session3"}
 }
 
+# ============================== cl 配置區 ==============================
+@cl.set_starters
+async def set_starters():
+    return [
+        cl.Starter(
+            label="請說明一下莫子 AI的功能",
+            message="請說明一下莫子 AI的功能",
+            icon="/public/idea.svg",
+            ),
+        ]
+
+
 # ============================== Agent 工具區 ==============================
+@tool
+def get_full_video_subtitles_by_title(keyword: str) -> str:
+    """
+    根據影片標題關鍵字查詢影片的完整 YouTube 字幕（前2000個字）
+    資料庫中的影片標題都有數字，若使用者詢問影片使用數字編號時，keyword只要設定為純數字即可搜尋，例如 "86"。
+
+    Args:
+        keyword: 影片標題關鍵字
+
+    Returns:
+        str: 包含完整字幕的字串（前2000個字）
+
+    Example:
+        使用此工具可以搜尋影片標題中包含特定關鍵字的影片內容。例如：
+        - 搜尋 "第８６集說些什麼？" 可以使用關鍵字 "86" 來找到該集的內容。
+        - 搜尋標題中包含 "什麼" 的影片內容。
+        此工具也可以搭配其他工具來應用，例如先使用 `search_youtube_subtitles` 工具找到相關影片，再使用此工具獲取完整字幕。
+    """
+    if not keyword:
+        return ""
+
+    conn = None
+    full_text = ""
+    try:
+        conn = psycopg2.connect(VF_DATABASE_URL, sslmode='require')
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            query = """
+                SELECT vt.text
+                FROM video_text vt
+                JOIN video v ON vt.video_id = v.video_id
+                WHERE v.title LIKE %s
+                ORDER BY vt.start
+                LIMIT 2000
+            """
+            cur.execute(query, (f"%{keyword}%",))
+            rows = cur.fetchall()
+
+            for row in rows:
+                full_text += row['text']
+                if len(full_text) >= 2000:
+                    full_text = full_text[:2000]
+                    break
+    except Exception as e:
+        print("資料庫查詢失敗:", e)
+    finally:
+        if conn:
+            conn.close()
+
+    return full_text
+
 @tool
 def search_youtube_subtitles(video_id: str, keyword: str) -> list:
     """
@@ -157,7 +218,7 @@ def get_videos_with_most_mentions(keyword: str) -> list:
                 WHERE vt.text LIKE %s
                 GROUP BY v.video_id, v.title
                 ORDER BY mention_count DESC
-                LIMIT 4
+                LIMIT 6
             """
             cur.execute(query, (f"%{keyword}%",))
             rows = cur.fetchall()
@@ -179,7 +240,7 @@ def get_videos_with_most_mentions(keyword: str) -> list:
     return results
 
 search_agent = CodeAgent(
-    tools=[search_youtube_subtitles, get_videos_with_most_mentions],
+    tools=[search_youtube_subtitles, get_videos_with_most_mentions, get_full_video_subtitles_by_title],
     model=model,
     name="search_agent",
     description=SEARCH_AGENT_DESC
@@ -207,30 +268,37 @@ async def on_chat_start():
     """聊天開始時初始化"""
     user = cl.user_session.get("user")
     chat_profile = cl.user_session.get("chat_profile")
-    await cl.Message(
-        content=f"歡迎使用莫子 AI！您目前在 {chat_profile}區域 歡迎你的提問。",
-        author="System"
-    ).send()
+
+def process_user_message(user_message):
+    return search_agent.run(user_message + SEARCH_AGENT_RESP_DESC)
 
 @cl.on_message
 async def on_message(message: cl.Message):
-    user_message = message.content
 
-    # 假設 response 是從 manager_agent.run() 獲得的字串
-    response = search_agent.run("我要找松果體的影片" + SEARCH_AGENT_RESP_DESC)
+    msg = cl.Message(content="請稍等，我們正在處理您的請求。")
+    await msg.send()
 
-    # 判斷格式並回傳
-    if response.get("type") == "text":
-        # 如果是純文字格式
-        await cl.Message(content=response.get("data", "未提供的文字")).send()
-    elif response.get("type") == "elements":
-        # 如果是 elements 格式
-        elements_data = response.get("data", {}).get("elements", [])
-        elements = [cl.Text(content=f"[{item['label']}]({item['url']})") for item in elements_data]
-        await cl.Message(
-            content="這是包含連結的元素",
-            elements=elements
-        ).send()
-    else:
-        # 如果格式不正確
-        await cl.Message(content="格式不正確或未定義").send()
+    try:
+        user_message = message.content
+        response = await cl.make_async(process_user_message)(user_message)
+
+        # 判斷格式並回傳
+        if response.get("type") == "text":
+            # 如果是純文字格式
+            msg.content=response.get("data", "未提供的文字")
+            await msg.update()
+        elif response.get("type") == "elements":
+            # 如果是 elements 格式
+            elements_data = response.get("data", {}).get("elements", [])
+            elements = [cl.Text(content=f"[{item['label']}]({item['url']})") for item in elements_data]
+            msg.content = "這是包含連結的元素"
+            msg.elements = elements
+            await msg.update()
+        else:
+            # 如果格式不正確
+            msg.content = "格式不正確或未定義"
+            await msg.update()
+    except Exception as e:
+        msg.content = "發生錯誤，請重新問問題或稍等一下再試。"
+        await msg.update()
+        print("處理訊息時發生錯誤:", e)
