@@ -4,13 +4,15 @@ import re
 import psycopg2
 import chainlit as cl
 import chinese_converter
-from smolagents import tool, CodeAgent, ToolCallingAgent, LiteLLMModel, DuckDuckGoSearchTool
+from transformers import AutoModelForCausalLM, AutoTokenizer
+from smolagents import tool, HfApiModel, CodeAgent, ToolCallingAgent, LiteLLMModel, DuckDuckGoSearchTool
 from pathlib import Path
 from datetime import datetime
 from psycopg2.extras import RealDictCursor
 
 # ============================== 配置區 ==============================
 VF_DATABASE_URL = os.environ.get("VF_DATABASE_URL")
+HF_TOKEN = os.environ.get("HF_TOKEN")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "your_openai_api_key")  # 請設置環境變數或直接填入
 SEARCH_AGENT_DESC = """
     # 莫子 AI 指導文檔
@@ -64,6 +66,8 @@ model = LiteLLMModel(
     api_base="https://api.openai.com/v1",
     api_key=OPENAI_API_KEY,
 )
+
+# model = HfApiModel()
 
 # 使用者資訊
 users = {
@@ -319,8 +323,8 @@ async def on_chat_start():
     user = cl.user_session.get("user")
     chat_profile = cl.user_session.get("chat_profile")
 
-def process_user_message(user_message):
-    return search_agent.run(user_message + SEARCH_AGENT_RESP_DESC)
+def process_user_message(user_message, history):
+    return search_agent.run(user_message + SEARCH_AGENT_RESP_DESC + history)
 
 @cl.on_message
 async def on_message(message: cl.Message):
@@ -330,12 +334,26 @@ async def on_message(message: cl.Message):
 
     try:
         user_message = message.content
-        response = await cl.make_async(process_user_message)(user_message)
+
+        # 獲取使用者的對話歷史
+        history = cl.user_session.get("history", "")
+
+        # 更新對話歷史
+        history += f"\nUser: {user_message}"
+
+        # 傳給 agent 處理
+        response = await cl.make_async(process_user_message)(user_message, history)
+
+        # 更新對話歷史
+        history += f"\nAI: {response.get('data', '')}"
+        cl.user_session.set("history", history)
 
         # 判斷格式並回傳
         if response.get("type") == "text":
+            msg.content = ""
+
             # 如果是純文字格式
-            response_content=response.get("data", "未提供的文字")
+            response_content = response.get("data", "未提供的文字")
 
             # 使用正則表達式依據 `，` 或 `。` 來拆分 token
             tokens = re.split(r'[，。]', response_content)
