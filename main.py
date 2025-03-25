@@ -106,11 +106,15 @@ def search_videos(word):
 
 
 @app.route('/', methods=['GET', 'POST'])
+@app.route('/search', methods=['GET'])
 @app.route('/search/<word>', methods=['GET'])
 def index(word=""):
     if request.method == 'POST':
         word = request.form['word'].strip()
         word = chinese_converter.to_traditional(word) # 簡體轉中文
+    elif request.method == 'GET':
+        word = request.args.get('q', word).strip()
+        word = chinese_converter.to_traditional(word) if word else ''
     results = search_videos(word)
     return render_template('index.html', word=word, data=results)
 

@@ -4,3 +4,5 @@
 *.txt
 
 __pycache__/
+
+*.csv
